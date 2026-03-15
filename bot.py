@@ -3,23 +3,32 @@ import os
 import time
 import edge_tts
 import threading
-import http.server
-import socketserver
+from http.server import BaseHTTPRequestHandler, HTTPServer # កែត្រង់ចំណុចនេះ
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# --- ផ្នែកបញ្ឆោត Render (Dummy Server) ---
+# --- ផ្នែកបញ្ឆោត Render (Dummy Server បែបថ្មី ឆ្លើយតបបាន ១០០%) ---
+class MyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        # ផ្ញើអត្ថបទនេះទៅកាន់ Render/Cron-job ដើម្បីបញ្ជាក់ថា Bot នៅរស់
+        self.wfile.write(b"Bot is Awake and Running 24/7!")
+
+    def log_message(self, format, *args):
+        return # បិទ Log កុំឱ្យវាពេញផ្ទាំង Logs របស់ Ra
+
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
-    handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", port), handler) as httpd:
-        print(f"Dummy server started at port {port}")
-        httpd.serve_forever()
+    server = HTTPServer(('', port), MyHandler)
+    print(f"✅ Dummy server started on port {port}")
+    server.serve_forever()
 
+# បើក Dummy Server ក្នុង Thread ផ្សេង
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # --- Configuration ---
-# ប្ដូរមកប្រើ Token ថ្មីដែល Ra ផ្ញើមក
 TELEGRAM_TOKEN = '8562086998:AAFdR1l-tefjy0rzurj4f28Yp2zdQOJCH1Q'
 ELEVENLABS_API_KEY = '5e09bdaa950ef146c81858a17c1a340ab2a3c00fb17768cd91c4005b25cdba11'
 CHANNEL_ID = '@I_AM_RA2'
@@ -136,10 +145,9 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(check_callback, pattern="check_sub"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("Bot is running on Render...")
+    print("🚀 Bot is starting on Render...")
     app.run_polling()
 
 if __name__ == '__main__':
     main()
-    
-    
+            
