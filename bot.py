@@ -10,26 +10,24 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 # --- ផ្នែកបញ្ឆោត Render (Dummy Server) ---
 def run_dummy_server():
-    # Render តម្រូវឱ្យមាន Port (Default 10000)
     port = int(os.environ.get("PORT", 10000))
     handler = http.server.SimpleHTTPRequestHandler
-    # បង្កើត Server ងាយៗមួយដើម្បីឱ្យ Render ឃើញថាមាន Web Service ដើរ
     with socketserver.TCPServer(("", port), handler) as httpd:
         print(f"Dummy server started at port {port}")
         httpd.serve_forever()
 
-# បើក Dummy Server ក្នុង Thread ផ្សេងមួយដើម្បីកុំឱ្យវាទាស់ជាមួយ Bot
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # --- Configuration ---
-TELEGRAM_TOKEN = '8562086998:AAGtfdIzJvuHvHZd9dWarC8Y3TMX13K2hJ4'
+# ប្ដូរមកប្រើ Token ថ្មីដែល Ra ផ្ញើមក
+TELEGRAM_TOKEN = '8562086998:AAFdR1l-tefjy0rzurj4f28Yp2zdQOJCH1Q'
 ELEVENLABS_API_KEY = '5e09bdaa950ef146c81858a17c1a340ab2a3c00fb17768cd91c4005b25cdba11'
 CHANNEL_ID = '@I_AM_RA2'
 CHANNEL_URL = 'https://t.me/I_AM_RA2'
 VOICE_ID_EN = '21m00Tcm4TlvDq8ikWAM'
 VOICE_KH = "km-KH-SreymomNeural"
 
-user_usage_en = {} # កូតាអង់គ្លេស
+user_usage_en = {} 
 user_mode = {}  
 
 main_keyboard = [['🇺🇸 English', '🇰🇭 ខ្មែរ'], ['📊 ឆែកមើលកូតាអង់គ្លេស']]
@@ -84,7 +82,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode = user_mode.get(user_id, 'kh')
     file_path = f"voice_{user_id}.mp3"
 
-    # --- ករណីភាសាខ្មែរ ---
     if mode == 'kh':
         if len(text) > 500:
             await update.message.reply_text("❌ សម្រាប់ភាសាខ្មែរ អ្នកអាចសរសេរបានត្រឹមតែ 500 អក្សរប៉ុណ្ណោះក្នុងមួយសារ!")
@@ -105,7 +102,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"Error ខ្មែរ: {str(e)}")
 
-    # --- ករណីភាសាអង់គ្លេស ---
     else:
         usage = user_usage_en.get(user_id, {'count': 0, 'last_reset': current_time})
         if current_time - usage['last_reset'] > 86400:
@@ -145,4 +141,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
     
