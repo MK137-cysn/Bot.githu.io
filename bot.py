@@ -2,8 +2,24 @@ import requests
 import os
 import time
 import edge_tts
+import threading
+import http.server
+import socketserver
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+
+# --- ផ្នែកបញ្ឆោត Render (Dummy Server) ---
+def run_dummy_server():
+    # Render តម្រូវឱ្យមាន Port (Default 10000)
+    port = int(os.environ.get("PORT", 10000))
+    handler = http.server.SimpleHTTPRequestHandler
+    # បង្កើត Server ងាយៗមួយដើម្បីឱ្យ Render ឃើញថាមាន Web Service ដើរ
+    with socketserver.TCPServer(("", port), handler) as httpd:
+        print(f"Dummy server started at port {port}")
+        httpd.serve_forever()
+
+# បើក Dummy Server ក្នុង Thread ផ្សេងមួយដើម្បីកុំឱ្យវាទាស់ជាមួយ Bot
+threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # --- Configuration ---
 TELEGRAM_TOKEN = '8562086998:AAGtfdIzJvuHvHZd9dWarC8Y3TMX13K2hJ4'
@@ -36,6 +52,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("សូមចូលរួម Channel ជាមុនសិន!", reply_markup=get_join_keyboard())
 
+async def check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if await is_subscribed(context.bot, query.from_user.id):
+        await query.edit_message_text("✅ រួចរាល់! សូមជ្រើសរើសភាសាខាងក្រោម៖")
+        await context.bot.send_message(chat_id=query.from_user.id, text="ជ្រើសរើសភាសា៖", reply_markup=markup)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
@@ -61,7 +84,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode = user_mode.get(user_id, 'kh')
     file_path = f"voice_{user_id}.mp3"
 
-    # --- ករណីភាសាខ្មែរ (500 អក្សរ/សារ, ប្រើបានរហូត) ---
+    # --- ករណីភាសាខ្មែរ ---
     if mode == 'kh':
         if len(text) > 500:
             await update.message.reply_text("❌ សម្រាប់ភាសាខ្មែរ អ្នកអាចសរសេរបានត្រឹមតែ 500 អក្សរប៉ុណ្ណោះក្នុងមួយសារ!")
@@ -82,10 +105,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"Error ខ្មែរ: {str(e)}")
 
-    # --- ករណីភាសាអង់គ្លេស (500 អក្សរ/ថ្ងៃ) ---
+    # --- ករណីភាសាអង់គ្លេស ---
     else:
         usage = user_usage_en.get(user_id, {'count': 0, 'last_reset': current_time})
-        # Reset រាល់ ២៤ ម៉ោង
         if current_time - usage['last_reset'] > 86400:
             usage = {'count': 0, 'last_reset': current_time}
         
@@ -111,15 +133,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_audio(audio=audio, caption=caption)
             os.remove(file_path)
         else:
-            await update.message.reply_text("ElevenLabs Error!")
+            await update.message.reply_text("ElevenLabs API Error!")
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(check_callback, pattern="check_sub"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("Bot is running...")
+    print("Bot is running on Render...")
     app.run_polling()
 
 if __name__ == '__main__':
     main()
-      
+    
